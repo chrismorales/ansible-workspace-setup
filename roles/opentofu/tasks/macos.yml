@@ -1,36 +1,73 @@
----
 - name: Check if OpenTofu is already installed
   command: tofu --version
   register: tofu_check
   failed_when: false
   changed_when: false
 
-- name: Install OpenTofu using official installer (macOS)
+- name: Get Homebrew prefix
+  set_fact:
+    homebrew_prefix: "{{ '/opt/homebrew' if ansible_architecture == 'arm64' else '/usr/local' }}"
+
+- name: Check if Homebrew is installed
+  stat:
+    path: "{{ homebrew_prefix }}/bin/brew"
+  register: homebrew_installed
+
+- name: Install Homebrew if not present
   block:
-    - name: Download OpenTofu installer script
-      get_url:
-        url: https://get.opentofu.org/install-opentofu.sh
-        dest: /tmp/install-opentofu.sh
-        mode: '0755'
-        force: yes
+    - name: Download and install Homebrew
+      shell: /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+      environment:
+        NONINTERACTIVE: "1"
+      become: no
 
-    - name: Run OpenTofu installer (brew method if available, otherwise standalone)
-      shell: |
-        if command -v brew >/dev/null 2>&1; then
-          /tmp/install-opentofu.sh --install-method brew
-        else
-          /tmp/install-opentofu.sh --install-method standalone
-        fi
-      args:
-        creates: /usr/local/bin/tofu
+    - name: Add Homebrew to shell profile
+      blockinfile:
+        path: "{{ real_user_home }}/.zprofile"
+        marker: "# {mark} HOMEBREW PATH"
+        block: |
+          # Add Homebrew to PATH
+          eval "$({{ homebrew_prefix }}/bin/brew shellenv)"
+        create: yes
+      become: no
+      become_user: "{{ real_user }}"
 
-    - name: Remove installer script
+    - name: Add Homebrew to current session
+      shell: eval "$({{ homebrew_prefix }}/bin/brew shellenv)"
+      become: no
+      become_user: "{{ real_user }}"
+  when: 
+    - not homebrew_installed.stat.exists
+    - tofu_check.rc != 0
+
+- name: Install OpenTofu via Homebrew
+  block:
+    - name: Update Homebrew
+      homebrew:
+        update_homebrew: yes
+      environment:
+        PATH: "{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
+
+    - name: Add OpenTofu tap
+      homebrew_tap:
+        name: opentofu/tap
+        state: present
+      environment:
+        PATH: "{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
+
+    - name: Install OpenTofu
+      homebrew:
+        name: opentofu/tap/opentofu
+        state: present
+      environment:
+        PATH: "{{ homebrew_prefix }}/bin:{{ ansible_env.PATH }}"
+
+    - name: Create system-wide symlink
       file:
-        path: /tmp/install-opentofu.sh
-        state: absent
+        src: "{{ homebrew_prefix }}/bin/tofu"
+        dest: /usr/local/bin/tofu
+        state: link
+        force: yes
+      ignore_errors: yes
+      become: yes
   when: tofu_check.rc != 0
-
-- name: Ensure OpenTofu binary is executable
-  file:
-    path: /usr/local/bin/tofu
-    mode: '0755'
