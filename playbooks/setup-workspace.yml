@@ -1,0 +1,9 @@
+---
+
+- hosts: all
+  become: true
+
+  gather_facts: true
+
+  roles: 
+    - workspace-setup
