@@ -37,7 +37,7 @@
     - role: vscode
       when: install_vscode
       tags: vscode
-      become: yes  # VS Code installation needs root
+      become: no  # VS Code installation needs root
 
     - role: ohmyzsh
       when: install_ohmyzsh
