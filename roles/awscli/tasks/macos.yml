@@ -1,5 +1,38 @@
 ---
-- name: Install AWS CLI via Homebrew
-  homebrew:
-    name: awscli
-    state: present
+- name: Check if AWS CLI v2 is already installed
+  command: aws --version
+  register: aws_check
+  failed_when: false
+  changed_when: false
+
+- name: Install AWS CLI v2 using official installer (macOS)
+  block:
+    - name: Detect macOS architecture
+      set_fact:
+        mac_arch: "{{ 'arm64' if ansible_architecture == 'arm64' else 'x86_64' }}"
+
+    - name: Download AWS CLI v2 installer for macOS
+      get_url:
+        url: "https://awscli.amazonaws.com/AWSCLIV2-{{ mac_arch }}.pkg"
+        dest: /tmp/AWSCLIV2.pkg
+        mode: '0644'
+        force: yes
+
+    - name: Install AWS CLI v2 using installer package
+      command: installer -pkg /tmp/AWSCLIV2.pkg -target /
+      become: yes
+
+    - name: Clean up installer file
+      file:
+        path: /tmp/AWSCLIV2.pkg
+        state: absent
+  when: 
+    - aws_check.rc != 0 or 'aws-cli/2' not in aws_check.stderr
+
+- name: Ensure AWS CLI is in PATH (macOS)
+  lineinfile:
+    path: "{{ real_user_home }}/.zshrc"
+    line: 'export PATH="/usr/local/bin:$PATH"'
+    create: yes
+  become: no
+  become_user: "{{ real_user }}"

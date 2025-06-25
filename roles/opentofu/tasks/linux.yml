@@ -1,125 +1,81 @@
 ---
-- name: Install OpenTofu via Snap on Debian/Ubuntu
+- name: Check if OpenTofu is already installed
+  command: tofu --version
+  register: tofu_check
+  failed_when: false
+  changed_when: false
+
+- name: Install OpenTofu using official installer (Debian/Ubuntu)
   block:
-    - name: Install snapd
-      apt:
-        name: snapd
-        state: present
-        update_cache: yes
-
-    - name: Ensure snapd service is running
-      systemd:
-        name: snapd
-        state: started
-        enabled: yes
-
-    - name: Install OpenTofu via snap
-      snap:
-        name: opentofu
-        classic: yes
-        state: present
-
-    - name: Create symlink for system-wide access
-      file:
-        src: /snap/bin/tofu
-        dest: /usr/local/bin/tofu
-        state: link
+    - name: Download OpenTofu installer script
+      get_url:
+        url: https://get.opentofu.org/install-opentofu.sh
+        dest: /tmp/install-opentofu.sh
+        mode: '0755'
         force: yes
-      ignore_errors: yes
-  when: ansible_os_family == 'Debian'
 
-- name: Install OpenTofu via Snap on RedHat/CentOS/Fedora
+    - name: Run OpenTofu installer (deb method)
+      command: /tmp/install-opentofu.sh --install-method deb
+      args:
+        creates: /usr/local/bin/tofu
+      become: yes
+
+    - name: Remove installer script
+      file:
+        path: /tmp/install-opentofu.sh
+        state: absent
+  when: 
+    - ansible_os_family == 'Debian'
+    - tofu_check.rc != 0
+
+- name: Install OpenTofu using official installer (RedHat/CentOS/Fedora)
   block:
-    - name: Install snapd (Fedora)
-      package:
-        name: snapd
-        state: present
-      when: ansible_distribution == 'Fedora'
-
-    - name: Install snapd (RHEL/CentOS)
-      block:
-        - name: Install EPEL repository
-          package:
-            name: epel-release
-            state: present
-
-        - name: Install snapd
-          package:
-            name: snapd
-            state: present
-      when: ansible_distribution in ['CentOS', 'RedHat']
-
-    - name: Enable and start snapd
-      systemd:
-        name: snapd
-        state: started
-        enabled: yes
-
-    - name: Enable snapd socket
-      systemd:
-        name: snapd.socket
-        state: started
-        enabled: yes
-
-    - name: Create snap symlink
-      file:
-        src: /var/lib/snapd/snap
-        dest: /snap
-        state: link
+    - name: Download OpenTofu installer script
+      get_url:
+        url: https://get.opentofu.org/install-opentofu.sh
+        dest: /tmp/install-opentofu.sh
+        mode: '0755'
         force: yes
 
-    - name: Install OpenTofu via snap
-      snap:
-        name: opentofu
-        classic: yes
-        state: present
+    - name: Run OpenTofu installer (rpm method)
+      command: /tmp/install-opentofu.sh --install-method rpm
+      args:
+        creates: /usr/local/bin/tofu
+      become: yes
 
-    - name: Create symlink for system-wide access
+    - name: Remove installer script
       file:
-        src: /snap/bin/tofu
-        dest: /usr/local/bin/tofu
-        state: link
-        force: yes
-      ignore_errors: yes
-  when: ansible_os_family == 'RedHat'
+        path: /tmp/install-opentofu.sh
+        state: absent
+  when: 
+    - ansible_os_family == 'RedHat'
+    - tofu_check.rc != 0
 
-- name: Install OpenTofu on Arch Linux
+- name: Install OpenTofu using official installer (Arch Linux)
   block:
-    - name: Install snapd via pacman
-      pacman:
-        name: snapd
-        state: present
-
-    - name: Enable and start snapd
-      systemd:
-        name: snapd
-        state: started
-        enabled: yes
-
-    - name: Enable snapd socket
-      systemd:
-        name: snapd.socket
-        state: started
-        enabled: yes
-
-    - name: Create snap symlink
-      file:
-        src: /var/lib/snapd/snap
-        dest: /snap
-        state: link
+    - name: Download OpenTofu installer script
+      get_url:
+        url: https://get.opentofu.org/install-opentofu.sh
+        dest: /tmp/install-opentofu.sh
+        mode: '0755'
         force: yes
 
-    - name: Install OpenTofu via snap
-      snap:
-        name: opentofu
-        classic: yes
-        state: present
+    - name: Run OpenTofu installer (standalone method for Arch)
+      command: /tmp/install-opentofu.sh --install-method standalone
+      args:
+        creates: /usr/local/bin/tofu
+      become: yes
 
-    - name: Create symlink for system-wide access
+    - name: Remove installer script
       file:
-        src: /snap/bin/tofu
-        dest: /usr/local/bin/tofu
-        state: link
-        force: yes
-      ignore_errors: yes
-  when: ansible_os_family == 'Archlinux'
+        path: /tmp/install-opentofu.sh
+        state: absent
+  when: 
+    - ansible_os_family == 'Archlinux'
+    - tofu_check.rc != 0
+
+- name: Ensure OpenTofu binary is executable
+  file:
+    path: /usr/local/bin/tofu
+    mode: '0755'
+  become: yes

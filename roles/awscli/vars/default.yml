@@ -1,3 +1,10 @@
 ---
 aws_default_region: "us-west-2"
 aws_default_output: "json"
+
+# AWS CLI installer URLs
+aws_installer_urls:
+  linux_x86_64: "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+  linux_aarch64: "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip"
+  macos_x86_64: "https://awscli.amazonaws.com/AWSCLIV2-x86_64.pkg"
+  macos_arm64: "https://awscli.amazonaws.com/AWSCLIV2-arm64.pkg"

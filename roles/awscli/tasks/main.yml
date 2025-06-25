@@ -5,6 +5,18 @@
     - "{{ ansible_os_family }}.yml"
     - "default.yml"
 
+- name: Get real user information
+  set_fact:
+    real_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+    real_user_home: "{{ lookup('env', 'HOME') if ansible_env.SUDO_USER is not defined else '/home/' + ansible_env.SUDO_USER }}"
+  when: ansible_os_family != 'Darwin'
+
+- name: Get real user information (macOS)
+  set_fact:
+    real_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+    real_user_home: "{{ lookup('env', 'HOME') if ansible_env.SUDO_USER is not defined else '/Users/' + ansible_env.SUDO_USER }}"
+  when: ansible_os_family == 'Darwin'
+
 - name: Install AWS CLI on Linux
   include_tasks: linux.yml
   when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
@@ -24,12 +36,11 @@
 
 - name: Create AWS configuration directory
   file:
-    path: "{{ user_home }}/.aws"
+    path: "{{ real_user_home }}/.aws"
     state: directory
     mode: '0700'
-    owner: "{{ current_user }}"
-    group: "{{ current_user }}"
   become: no
+  become_user: "{{ real_user }}"
 
 - name: Create AWS config file template
   copy:
@@ -38,8 +49,8 @@
       # Configure your default profile and region
       
       [default]
-      region = us-west-2
-      output = json
+      region = {{ aws_default_region }}
+      output = {{ aws_default_output }}
       
       # Add additional profiles as needed
       # [profile dev]
@@ -49,12 +60,15 @@
       # [profile prod]
       # region = eu-west-1
       # output = json
-    dest: "{{ user_home }}/.aws/config"
+      
+      # [profile staging]
+      # region = us-west-1
+      # output = yaml
+    dest: "{{ real_user_home }}/.aws/config"
     mode: '0600'
-    owner: "{{ current_user }}"
-    group: "{{ current_user }}"
     force: no
   become: no
+  become_user: "{{ real_user }}"
 
 - name: Create AWS credentials file template
   copy:
@@ -74,27 +88,116 @@
       # [prod]
       # aws_access_key_id = YOUR_PROD_ACCESS_KEY_ID
       # aws_secret_access_key = YOUR_PROD_SECRET_ACCESS_KEY
-    dest: "{{ user_home }}/.aws/credentials"
+      
+      # [staging]
+      # aws_access_key_id = YOUR_STAGING_ACCESS_KEY_ID
+      # aws_secret_access_key = YOUR_STAGING_SECRET_ACCESS_KEY
+    dest: "{{ real_user_home }}/.aws/credentials"
     mode: '0600'
-    owner: "{{ current_user }}"
-    group: "{{ current_user }}"
     force: no
   become: no
+  become_user: "{{ real_user }}"
 
-- name: Install additional AWS tools
-  pip:
-    name:
-      - awscli-plugin-endpoint
-      - aws-shell
-    state: present
-    executable: pip3
+- name: Add AWS CLI aliases to shell profile
+  blockinfile:
+    path: "{{ real_user_home }}/.zshrc"
+    marker: "# {mark} AWS CLI ALIASES"
+    block: |
+      # AWS CLI aliases and functions
+      alias awsls='aws s3 ls'
+      alias awswhoami='aws sts get-caller-identity'
+      alias awsregion='aws configure get region'
+      
+      # AWS profile management
+      aws-profile() {
+        if [ -z "$1" ]; then
+          echo "Current profile: ${AWS_PROFILE:-default}"
+          echo "Available profiles:"
+          aws configure list-profiles 2>/dev/null || echo "No profiles configured"
+        else
+          export AWS_PROFILE="$1"
+          echo "Switched to AWS profile: $1"
+        fi
+      }
+      
+      # AWS region management
+      aws-region() {
+        if [ -z "$1" ]; then
+          aws configure get region
+        else
+          aws configure set region "$1"
+          echo "AWS region set to: $1"
+        fi
+      }
+      
+      # Quick AWS commands
+      aws-buckets() {
+        aws s3 ls
+      }
+      
+      aws-instances() {
+        aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
+      }
+      
+      aws-vpcs() {
+        aws ec2 describe-vpcs --query 'Vpcs[*].[VpcId,CidrBlock,State,Tags[?Key==`Name`].Value|[0]]' --output table
+      }
+    create: yes
   become: no
-  ignore_errors: yes
+  become_user: "{{ real_user }}"
+
+- name: Add AWS CLI aliases to bash profile (fallback)
+  blockinfile:
+    path: "{{ real_user_home }}/.bashrc"
+    marker: "# {mark} AWS CLI ALIASES"
+    block: |
+      # AWS CLI aliases and functions
+      alias awsls='aws s3 ls'
+      alias awswhoami='aws sts get-caller-identity'
+      alias awsregion='aws configure get region'
+      
+      # AWS profile management
+      aws-profile() {
+        if [ -z "$1" ]; then
+          echo "Current profile: ${AWS_PROFILE:-default}"
+          echo "Available profiles:"
+          aws configure list-profiles 2>/dev/null || echo "No profiles configured"
+        else
+          export AWS_PROFILE="$1"
+          echo "Switched to AWS profile: $1"
+        fi
+      }
+      
+      # AWS region management
+      aws-region() {
+        if [ -z "$1" ]; then
+          aws configure get region
+        else
+          aws configure set region "$1"
+          echo "AWS region set to: $1"
+        fi
+      }
+      
+      # Quick AWS commands
+      aws-buckets() {
+        aws s3 ls
+      }
+      
+      aws-instances() {
+        aws ec2 describe-instances --query 'Reservations[*].Instances[*].[InstanceId,InstanceType,State.Name,Tags[?Key==`Name`].Value|[0]]' --output table
+      }
+      
+      aws-vpcs() {
+        aws ec2 describe-vpcs --query 'Vpcs[*].[VpcId,CidrBlock,State,Tags[?Key==`Name`].Value|[0]]' --output table
+      }
+    create: yes
+  become: no
+  become_user: "{{ real_user }}"
 
 - name: Display AWS CLI setup instructions
   debug:
     msg:
-      - "AWS CLI has been installed successfully!"
+      - "AWS CLI v2 has been installed successfully using the official installer!"
       - ""
       - "Next steps:"
       - "  1. Configure your credentials: aws configure"
@@ -102,8 +205,21 @@
       - "  3. Test your setup: aws sts get-caller-identity"
       - "  4. List S3 buckets: aws s3 ls"
       - ""
-      - "Configuration files:"
-      - "  - ~/.aws/config (region, output format, profiles)"
-      - "  - ~/.aws/credentials (access keys - keep secure!)"
+      - "Enhanced commands available:"
+      - "  awswhoami          # Show current AWS identity"
+      - "  awsls              # List S3 buckets"
+      - "  aws-profile [name] # Switch/show AWS profile"
+      - "  aws-region [name]  # Set/show AWS region"
+      - "  aws-buckets        # List S3 buckets"
+      - "  aws-instances      # List EC2 instances"
+      - "  aws-vpcs           # List VPCs"
       - ""
+      - "Configuration files:"
+      - "  - {{ real_user_home }}/.aws/config (region, output format, profiles)"
+      - "  - {{ real_user_home }}/.aws/credentials (access keys - keep secure!)"
+      - ""
+      - "Installation method: Official AWS CLI v2 installer"
+      - "Binary location: /usr/local/bin/aws"
+      - ""
+      - "To reload shell aliases: source ~/.zshrc"
       - "Documentation: https://docs.aws.amazon.com/cli/"

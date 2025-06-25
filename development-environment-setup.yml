@@ -1,18 +1,15 @@
-# site.yml - Main playbook for development environment setup
----
 - name: Development Environment Setup
   hosts: localhost
   connection: local
   gather_facts: yes
-  become: yes
-  become_method: sudo
+  become: no  # Don't become root by default
 
   vars:
-    # Global variables
-    user_home: "{{ ansible_env.HOME }}"
-    current_user: "{{ ansible_env.USER }}"
+    # Capture real user info before any privilege escalation
+    real_user: "{{ ansible_env.USER }}"
+    real_user_home: "{{ ansible_env.HOME }}"
     
-    # Package installation flags - set to false to skip
+    # Package installation flags
     install_docker: true
     install_vscode: true
     install_ohmyzsh: true
@@ -24,59 +21,68 @@
     install_awscli: true
 
   pre_tasks:
-    - name: Display OS information
+    - name: Display user information
       debug:
         msg: 
+          - "Real User: {{ real_user }}"
+          - "Real Home: {{ real_user_home }}"
           - "Operating System: {{ ansible_os_family }}"
-          - "Distribution: {{ ansible_distribution | default('N/A') }}"
-          - "Version: {{ ansible_distribution_version | default('N/A') }}"
-          - "Architecture: {{ ansible_architecture }}"
-          - "User: {{ current_user }}"
-          - "Home: {{ user_home }}"
-
-    - name: Fail if running on unsupported OS
-      fail:
-        msg: "This playbook only supports Linux and macOS (Darwin)"
-      when: ansible_os_family not in ['Debian', 'RedHat', 'Archlinux', 'Darwin']
 
   roles:
     - role: docker
       when: install_docker
       tags: docker
-    
-    - role: opentofu
-      when: install_opentofu
-      tags: opentofu
-
-    - role: awscli
-      when: install_awscli
-      tags: awscli
+      become: yes  # Docker needs root
 
     - role: vscode
       when: install_vscode
       tags: vscode
+      become: yes  # VS Code installation needs root
 
     - role: ohmyzsh
       when: install_ohmyzsh
       tags: ohmyzsh
+      vars:
+        user_home: "{{ real_user_home }}"
+        current_user: "{{ real_user }}"
 
     - role: neovim
       when: install_neovim
       tags: neovim
+      become: yes  # Package installation needs root
+      vars:
+        user_home: "{{ real_user_home }}"
+        current_user: "{{ real_user }}"
 
     - role: python_virtualenv
       when: install_python_virtualenv
       tags: python
+      become: yes  # Package installation needs root
+      vars:
+        user_home: "{{ real_user_home }}"
+        current_user: "{{ real_user }}"
 
     - role: obsidian
       when: install_obsidian
       tags: obsidian
+      become: yes  # Package installation needs root
 
     - role: pass
       when: install_pass
       tags: pass
+      become: yes  # Package installation needs root
 
-  post_tasks:
-    - name: Display completion message
-      debug:
-        msg: "Development environment setup completed successfully!"
+    - role: opentofu
+      when: install_opentofu
+      tags: opentofu
+      vars:
+        user_home: "{{ real_user_home }}"
+        current_user: "{{ real_user }}"
+
+    - role: awscli
+      when: install_awscli
+      tags: awscli
+      become: yes  # Installation needs root
+      vars:
+        user_home: "{{ real_user_home }}"
+        current_user: "{{ real_user }}"

@@ -1,4 +1,10 @@
 ---
-opentofu_version: "latest"
 opentofu_config_dir: "{{ ansible_env.HOME }}/.tofu.d"
-snap_classic: yes
+opentofu_installer_url: "https://get.opentofu.org/install-opentofu.sh"
+
+# Installation methods by OS
+opentofu_install_methods:
+  Debian: "deb"
+  RedHat: "rpm" 
+  Archlinux: "standalone"
+  Darwin: "brew"

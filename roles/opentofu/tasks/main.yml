@@ -5,6 +5,18 @@
     - "{{ ansible_os_family }}.yml"
     - "default.yml"
 
+- name: Get real user information
+  set_fact:
+    real_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+    real_user_home: "{{ lookup('env', 'HOME') if ansible_env.SUDO_USER is not defined else '/home/' + ansible_env.SUDO_USER }}"
+  when: ansible_os_family != 'Darwin'
+
+- name: Get real user information (macOS)
+  set_fact:
+    real_user: "{{ ansible_env.SUDO_USER | default(ansible_env.USER) }}"
+    real_user_home: "{{ lookup('env', 'HOME') if ansible_env.SUDO_USER is not defined else '/Users/' + ansible_env.SUDO_USER }}"
+  when: ansible_os_family == 'Darwin'
+
 - name: Install OpenTofu on Linux
   include_tasks: linux.yml
   when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
@@ -24,35 +36,28 @@
 
 - name: Create OpenTofu configuration directory
   file:
-    path: "{{ user_home }}/.tofu.d"
+    path: "{{ real_user_home }}/.tofu.d"
     state: directory
     mode: '0755'
-    owner: "{{ current_user }}"
-    group: "{{ current_user }}"
   become: no
+  become_user: "{{ real_user }}"
 
 - name: Create Terraform compatibility directory (for legacy scripts)
   file:
-    path: "{{ user_home }}/.terraform.d"
+    path: "{{ real_user_home }}/.terraform.d"
     state: directory
     mode: '0755'
-    owner: "{{ current_user }}"
-    group: "{{ current_user }}"
   become: no
+  become_user: "{{ real_user }}"
 
 - name: Add OpenTofu aliases to shell profile
   blockinfile:
-    path: "{{ user_home }}/.zshrc"
+    path: "{{ real_user_home }}/.zshrc"
     marker: "# {mark} OPENTOFU ALIASES"
     block: |
       # OpenTofu aliases and functions
       alias tf='tofu'
       alias terraform='tofu'
-      
-      # Add snap bin to PATH if not already there
-      if [[ ":$PATH:" != *":/snap/bin:"* ]]; then
-        export PATH="/snap/bin:$PATH"
-      fi
       
       # OpenTofu helper functions
       tofu-init() {
@@ -78,22 +83,26 @@
       tofu-validate() {
         tofu validate "$@"
       }
+      
+      tofu-workspace() {
+        if [ -z "$1" ]; then
+          tofu workspace list
+        else
+          tofu workspace select "$1"
+        fi
+      }
     create: yes
   become: no
+  become_user: "{{ real_user }}"
 
 - name: Add OpenTofu aliases to bash profile (fallback)
   blockinfile:
-    path: "{{ user_home }}/.bashrc"
+    path: "{{ real_user_home }}/.bashrc"
     marker: "# {mark} OPENTOFU ALIASES"
     block: |
       # OpenTofu aliases and functions
       alias tf='tofu'
       alias terraform='tofu'
-      
-      # Add snap bin to PATH if not already there
-      if [[ ":$PATH:" != *":/snap/bin:"* ]]; then
-        export PATH="/snap/bin:$PATH"
-      fi
       
       # OpenTofu helper functions
       tofu-init() {
@@ -119,13 +128,22 @@
       tofu-validate() {
         tofu validate "$@"
       }
+      
+      tofu-workspace() {
+        if [ -z "$1" ]; then
+          tofu workspace list
+        else
+          tofu workspace select "$1"
+        fi
+      }
     create: yes
   become: no
+  become_user: "{{ real_user }}"
 
 - name: Display OpenTofu setup instructions
   debug:
     msg:
-      - "OpenTofu has been installed successfully via Snap!"
+      - "OpenTofu has been installed successfully using the official installer!"
       - ""
       - "OpenTofu is a drop-in replacement for Terraform with the same commands:"
       - "  tofu init      # Initialize a new project"
@@ -136,14 +154,14 @@
       - "Terraform compatibility:"
       - "  - 'terraform' command is aliased to 'tofu'"
       - "  - 'tf' is a short alias for 'tofu'"
-      - "  - Helper functions: tofu-init, tofu-plan, tofu-apply, etc."
+      - "  - Helper functions: tofu-init, tofu-plan, tofu-apply, tofu-workspace"
       - ""
-      - "Installation method: Snap package"
-      - "Binary location: /snap/bin/tofu"
+      - "Installation method: Official OpenTofu installer script"
+      - "Binary location: /usr/local/bin/tofu"
       - ""
       - "Configuration directories:"
-      - "  - ~/.tofu.d (OpenTofu config)"
-      - "  - ~/.terraform.d (compatibility)"
+      - "  - {{ real_user_home }}/.tofu.d (OpenTofu config)"
+      - "  - {{ real_user_home }}/.terraform.d (compatibility)"
       - ""
       - "To reload shell aliases: source ~/.zshrc"
       - "Documentation: https://opentofu.org/docs/"

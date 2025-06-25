@@ -1,61 +1,36 @@
 ---
-- name: Check if OpenTofu is available via Homebrew
-  shell: brew search opentofu
-  register: brew_opentofu_search
+- name: Check if OpenTofu is already installed
+  command: tofu --version
+  register: tofu_check
   failed_when: false
   changed_when: false
 
-- name: Install OpenTofu via Homebrew (if available)
-  homebrew:
-    name: opentofu
-    state: present
-  when: "'opentofu' in brew_opentofu_search.stdout"
-
-- name: Install OpenTofu manually on macOS (if not in Homebrew)
+- name: Install OpenTofu using official installer (macOS)
   block:
-    - name: Detect architecture
-      set_fact:
-        mac_arch: "{{ 'arm64' if ansible_architecture == 'arm64' else 'amd64' }}"
-
-    - name: Get latest OpenTofu version
-      uri:
-        url: https://api.github.com/repos/opentofu/opentofu/releases/latest
-        return_content: yes
-      register: tofu_latest_release
-
-    - name: Extract version number
-      set_fact:
-        tofu_version_clean: "{{ tofu_latest_release.json.tag_name | regex_replace('^v', '') }}"
-
-    - name: Download OpenTofu for macOS
+    - name: Download OpenTofu installer script
       get_url:
-        url: "https://github.com/opentofu/opentofu/releases/download/v{{ tofu_version_clean }}/tofu_{{ tofu_version_clean }}_darwin_{{ mac_arch }}.zip"
-        dest: /tmp/opentofu.zip
-        mode: '0644'
-
-    - name: Create temporary extraction directory
-      file:
-        path: /tmp/opentofu_extract
-        state: directory
-
-    - name: Extract OpenTofu
-      unarchive:
-        src: /tmp/opentofu.zip
-        dest: /tmp/opentofu_extract
-        remote_src: yes
-
-    - name: Install OpenTofu binary
-      copy:
-        src: /tmp/opentofu_extract/tofu
-        dest: /usr/local/bin/tofu
+        url: https://get.opentofu.org/install-opentofu.sh
+        dest: /tmp/install-opentofu.sh
         mode: '0755'
-        remote_src: yes
+        force: yes
 
-    - name: Clean up temporary files
+    - name: Run OpenTofu installer (brew method if available, otherwise standalone)
+      shell: |
+        if command -v brew >/dev/null 2>&1; then
+          /tmp/install-opentofu.sh --install-method brew
+        else
+          /tmp/install-opentofu.sh --install-method standalone
+        fi
+      args:
+        creates: /usr/local/bin/tofu
+
+    - name: Remove installer script
       file:
-        path: "{{ item }}"
+        path: /tmp/install-opentofu.sh
         state: absent
-      loop:
-        - /tmp/opentofu.zip
-        - /tmp/opentofu_extract
-  when: "'opentofu' not in brew_opentofu_search.stdout"
+  when: tofu_check.rc != 0
+
+- name: Ensure OpenTofu binary is executable
+  file:
+    path: /usr/local/bin/tofu
+    mode: '0755'
