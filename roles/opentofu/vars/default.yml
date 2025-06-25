@@ -1,0 +1,4 @@
+---
+opentofu_version: "latest"
+opentofu_config_dir: "{{ ansible_env.HOME }}/.tofu.d"
+snap_classic: yes

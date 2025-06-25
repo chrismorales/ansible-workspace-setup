@@ -1,0 +1,125 @@
+---
+- name: Install OpenTofu via Snap on Debian/Ubuntu
+  block:
+    - name: Install snapd
+      apt:
+        name: snapd
+        state: present
+        update_cache: yes
+
+    - name: Ensure snapd service is running
+      systemd:
+        name: snapd
+        state: started
+        enabled: yes
+
+    - name: Install OpenTofu via snap
+      snap:
+        name: opentofu
+        classic: yes
+        state: present
+
+    - name: Create symlink for system-wide access
+      file:
+        src: /snap/bin/tofu
+        dest: /usr/local/bin/tofu
+        state: link
+        force: yes
+      ignore_errors: yes
+  when: ansible_os_family == 'Debian'
+
+- name: Install OpenTofu via Snap on RedHat/CentOS/Fedora
+  block:
+    - name: Install snapd (Fedora)
+      package:
+        name: snapd
+        state: present
+      when: ansible_distribution == 'Fedora'
+
+    - name: Install snapd (RHEL/CentOS)
+      block:
+        - name: Install EPEL repository
+          package:
+            name: epel-release
+            state: present
+
+        - name: Install snapd
+          package:
+            name: snapd
+            state: present
+      when: ansible_distribution in ['CentOS', 'RedHat']
+
+    - name: Enable and start snapd
+      systemd:
+        name: snapd
+        state: started
+        enabled: yes
+
+    - name: Enable snapd socket
+      systemd:
+        name: snapd.socket
+        state: started
+        enabled: yes
+
+    - name: Create snap symlink
+      file:
+        src: /var/lib/snapd/snap
+        dest: /snap
+        state: link
+        force: yes
+
+    - name: Install OpenTofu via snap
+      snap:
+        name: opentofu
+        classic: yes
+        state: present
+
+    - name: Create symlink for system-wide access
+      file:
+        src: /snap/bin/tofu
+        dest: /usr/local/bin/tofu
+        state: link
+        force: yes
+      ignore_errors: yes
+  when: ansible_os_family == 'RedHat'
+
+- name: Install OpenTofu on Arch Linux
+  block:
+    - name: Install snapd via pacman
+      pacman:
+        name: snapd
+        state: present
+
+    - name: Enable and start snapd
+      systemd:
+        name: snapd
+        state: started
+        enabled: yes
+
+    - name: Enable snapd socket
+      systemd:
+        name: snapd.socket
+        state: started
+        enabled: yes
+
+    - name: Create snap symlink
+      file:
+        src: /var/lib/snapd/snap
+        dest: /snap
+        state: link
+        force: yes
+
+    - name: Install OpenTofu via snap
+      snap:
+        name: opentofu
+        classic: yes
+        state: present
+
+    - name: Create symlink for system-wide access
+      file:
+        src: /snap/bin/tofu
+        dest: /usr/local/bin/tofu
+        state: link
+        force: yes
+      ignore_errors: yes
+  when: ansible_os_family == 'Archlinux'

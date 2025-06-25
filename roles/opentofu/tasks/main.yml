@@ -1,0 +1,149 @@
+---
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_os_family }}.yml"
+    - "default.yml"
+
+- name: Install OpenTofu on Linux
+  include_tasks: linux.yml
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+
+- name: Install OpenTofu on macOS
+  include_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Verify OpenTofu installation
+  command: tofu --version
+  register: tofu_version
+  changed_when: false
+
+- name: Display OpenTofu version
+  debug:
+    msg: "{{ tofu_version.stdout }}"
+
+- name: Create OpenTofu configuration directory
+  file:
+    path: "{{ user_home }}/.tofu.d"
+    state: directory
+    mode: '0755'
+    owner: "{{ current_user }}"
+    group: "{{ current_user }}"
+  become: no
+
+- name: Create Terraform compatibility directory (for legacy scripts)
+  file:
+    path: "{{ user_home }}/.terraform.d"
+    state: directory
+    mode: '0755'
+    owner: "{{ current_user }}"
+    group: "{{ current_user }}"
+  become: no
+
+- name: Add OpenTofu aliases to shell profile
+  blockinfile:
+    path: "{{ user_home }}/.zshrc"
+    marker: "# {mark} OPENTOFU ALIASES"
+    block: |
+      # OpenTofu aliases and functions
+      alias tf='tofu'
+      alias terraform='tofu'
+      
+      # Add snap bin to PATH if not already there
+      if [[ ":$PATH:" != *":/snap/bin:"* ]]; then
+        export PATH="/snap/bin:$PATH"
+      fi
+      
+      # OpenTofu helper functions
+      tofu-init() {
+        tofu init "$@"
+      }
+      
+      tofu-plan() {
+        tofu plan "$@"
+      }
+      
+      tofu-apply() {
+        tofu apply "$@"
+      }
+      
+      tofu-destroy() {
+        tofu destroy "$@"
+      }
+      
+      tofu-fmt() {
+        tofu fmt -recursive "$@"
+      }
+      
+      tofu-validate() {
+        tofu validate "$@"
+      }
+    create: yes
+  become: no
+
+- name: Add OpenTofu aliases to bash profile (fallback)
+  blockinfile:
+    path: "{{ user_home }}/.bashrc"
+    marker: "# {mark} OPENTOFU ALIASES"
+    block: |
+      # OpenTofu aliases and functions
+      alias tf='tofu'
+      alias terraform='tofu'
+      
+      # Add snap bin to PATH if not already there
+      if [[ ":$PATH:" != *":/snap/bin:"* ]]; then
+        export PATH="/snap/bin:$PATH"
+      fi
+      
+      # OpenTofu helper functions
+      tofu-init() {
+        tofu init "$@"
+      }
+      
+      tofu-plan() {
+        tofu plan "$@"
+      }
+      
+      tofu-apply() {
+        tofu apply "$@"
+      }
+      
+      tofu-destroy() {
+        tofu destroy "$@"
+      }
+      
+      tofu-fmt() {
+        tofu fmt -recursive "$@"
+      }
+      
+      tofu-validate() {
+        tofu validate "$@"
+      }
+    create: yes
+  become: no
+
+- name: Display OpenTofu setup instructions
+  debug:
+    msg:
+      - "OpenTofu has been installed successfully via Snap!"
+      - ""
+      - "OpenTofu is a drop-in replacement for Terraform with the same commands:"
+      - "  tofu init      # Initialize a new project"
+      - "  tofu plan      # Plan your deployment"
+      - "  tofu apply     # Apply your changes"
+      - "  tofu destroy   # Destroy infrastructure"
+      - ""
+      - "Terraform compatibility:"
+      - "  - 'terraform' command is aliased to 'tofu'"
+      - "  - 'tf' is a short alias for 'tofu'"
+      - "  - Helper functions: tofu-init, tofu-plan, tofu-apply, etc."
+      - ""
+      - "Installation method: Snap package"
+      - "Binary location: /snap/bin/tofu"
+      - ""
+      - "Configuration directories:"
+      - "  - ~/.tofu.d (OpenTofu config)"
+      - "  - ~/.terraform.d (compatibility)"
+      - ""
+      - "To reload shell aliases: source ~/.zshrc"
+      - "Documentation: https://opentofu.org/docs/"

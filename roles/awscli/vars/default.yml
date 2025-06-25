@@ -1,0 +1,3 @@
+---
+aws_default_region: "us-west-2"
+aws_default_output: "json"

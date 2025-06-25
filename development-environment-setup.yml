@@ -20,6 +20,8 @@
     install_python_virtualenv: true
     install_obsidian: true
     install_pass: true
+    install_opentofu: true
+    install_awscli: true
 
   pre_tasks:
     - name: Display OS information
@@ -41,6 +43,14 @@
     - role: docker
       when: install_docker
       tags: docker
+    
+    - role: opentofu
+      when: install_opentofu
+      tags: opentofu
+
+    - role: awscli
+      when: install_awscli
+      tags: awscli
 
     - role: vscode
       when: install_vscode

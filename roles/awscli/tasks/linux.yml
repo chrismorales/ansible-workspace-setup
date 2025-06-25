@@ -1,0 +1,88 @@
+---
+- name: Install AWS CLI v2 on Debian/Ubuntu
+  block:
+    - name: Download AWS CLI v2 installer
+      get_url:
+        url: "https://awscli.amazonaws.com/awscli-exe-linux-{{ ansible_architecture }}.zip"
+        dest: /tmp/awscliv2.zip
+        mode: '0644'
+
+    - name: Install unzip if not present
+      apt:
+        name: unzip
+        state: present
+
+    - name: Extract AWS CLI v2
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: yes
+
+    - name: Install AWS CLI v2
+      command: /tmp/aws/install --update
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Clean up installer files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/awscliv2.zip
+        - /tmp/aws
+  when: ansible_os_family == 'Debian'
+
+- name: Install AWS CLI v2 on RedHat/CentOS/Fedora
+  block:
+    - name: Download AWS CLI v2 installer
+      get_url:
+        url: "https://awscli.amazonaws.com/awscli-exe-linux-{{ ansible_architecture }}.zip"
+        dest: /tmp/awscliv2.zip
+        mode: '0644'
+
+    - name: Install unzip if not present
+      package:
+        name: unzip
+        state: present
+
+    - name: Extract AWS CLI v2
+      unarchive:
+        src: /tmp/awscliv2.zip
+        dest: /tmp
+        remote_src: yes
+
+    - name: Install AWS CLI v2
+      command: /tmp/aws/install --update
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: Clean up installer files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /tmp/awscliv2.zip
+        - /tmp/aws
+  when: ansible_os_family == 'RedHat'
+
+- name: Install AWS CLI on Arch Linux
+  block:
+    - name: Check if yay is installed
+      command: which yay
+      register: yay_installed
+      failed_when: false
+      changed_when: false
+
+    - name: Install yay if not present
+      shell: |
+        cd /tmp
+        git clone https://aur.archlinux.org/yay.git
+        cd yay
+        makepkg -si --noconfirm
+      become: no
+      when: yay_installed.rc != 0
+
+    - name: Install AWS CLI via AUR
+      shell: yay -S --noconfirm aws-cli-v2
+      become: no
+  when: ansible_os_family == 'Archlinux'

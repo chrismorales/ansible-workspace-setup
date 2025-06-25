@@ -6,11 +6,13 @@ This Ansible playbook automatically sets up a complete development environment o
 
 - **Docker**: Container platform with Docker Compose
 - **VS Code**: Visual Studio Code editor
-- **Oh My Zsh**: Enhanced shell with plugins (zsh-autosuggestions, zsh-syntax-highlighting)
+- **Oh My Zsh**: Enhanced shell with plugins
 - **Neovim**: Modern Vim-based editor with basic configuration
-- **Python Virtual Environment**: Python3, pip, virtualenv, and virtualenvwrapper
+- **Python Virtual Environment**: Python3, pip, and venv tools
 - **Obsidian**: Note-taking application
 - **Pass**: Unix password manager with GPG support
+- **OpenTofu**: Open-source Infrastructure as Code tool (Terraform alternative)
+- **AWS CLI**: Amazon Web Services command line interface
 
 ## Requirements
 
@@ -102,6 +104,27 @@ pass init <your-gpg-key-id>
 Create your first virtual environment:
 ```bash
 python3 -m venv _env312
+```
+
+## OpenTofu Usage
+
+OpenTofu is a drop-in replacement for Terraform:
+
+```bash
+# All standard Terraform commands work
+tofu init
+tofu plan
+tofu apply
+tofu destroy
+
+# Compatibility aliases are provided
+terraform init    # actually runs 'tofu init'
+tf plan          # actually runs 'tofu plan'
+
+# Helper functions
+tofu-init        # wrapper for tofu init
+tofu-plan        # wrapper for tofu plan
+tofu-apply       # wrapper for tofu apply
 ```
 
 ### Docker

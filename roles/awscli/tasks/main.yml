@@ -1,0 +1,109 @@
+---
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_os_family }}.yml"
+    - "default.yml"
+
+- name: Install AWS CLI on Linux
+  include_tasks: linux.yml
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+
+- name: Install AWS CLI on macOS
+  include_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Verify AWS CLI installation
+  command: aws --version
+  register: aws_version
+  changed_when: false
+
+- name: Display AWS CLI version
+  debug:
+    msg: "{{ aws_version.stdout }}"
+
+- name: Create AWS configuration directory
+  file:
+    path: "{{ user_home }}/.aws"
+    state: directory
+    mode: '0700'
+    owner: "{{ current_user }}"
+    group: "{{ current_user }}"
+  become: no
+
+- name: Create AWS config file template
+  copy:
+    content: |
+      # AWS CLI Configuration File
+      # Configure your default profile and region
+      
+      [default]
+      region = us-west-2
+      output = json
+      
+      # Add additional profiles as needed
+      # [profile dev]
+      # region = us-east-1
+      # output = table
+      
+      # [profile prod]
+      # region = eu-west-1
+      # output = json
+    dest: "{{ user_home }}/.aws/config"
+    mode: '0600'
+    owner: "{{ current_user }}"
+    group: "{{ current_user }}"
+    force: no
+  become: no
+
+- name: Create AWS credentials file template
+  copy:
+    content: |
+      # AWS CLI Credentials File
+      # Add your AWS access keys here
+      # NEVER commit this file to version control!
+      
+      [default]
+      # aws_access_key_id = YOUR_ACCESS_KEY_ID
+      # aws_secret_access_key = YOUR_SECRET_ACCESS_KEY
+      
+      # [dev]
+      # aws_access_key_id = YOUR_DEV_ACCESS_KEY_ID
+      # aws_secret_access_key = YOUR_DEV_SECRET_ACCESS_KEY
+      
+      # [prod]
+      # aws_access_key_id = YOUR_PROD_ACCESS_KEY_ID
+      # aws_secret_access_key = YOUR_PROD_SECRET_ACCESS_KEY
+    dest: "{{ user_home }}/.aws/credentials"
+    mode: '0600'
+    owner: "{{ current_user }}"
+    group: "{{ current_user }}"
+    force: no
+  become: no
+
+- name: Install additional AWS tools
+  pip:
+    name:
+      - awscli-plugin-endpoint
+      - aws-shell
+    state: present
+    executable: pip3
+  become: no
+  ignore_errors: yes
+
+- name: Display AWS CLI setup instructions
+  debug:
+    msg:
+      - "AWS CLI has been installed successfully!"
+      - ""
+      - "Next steps:"
+      - "  1. Configure your credentials: aws configure"
+      - "  2. Or edit ~/.aws/credentials and ~/.aws/config manually"
+      - "  3. Test your setup: aws sts get-caller-identity"
+      - "  4. List S3 buckets: aws s3 ls"
+      - ""
+      - "Configuration files:"
+      - "  - ~/.aws/config (region, output format, profiles)"
+      - "  - ~/.aws/credentials (access keys - keep secure!)"
+      - ""
+      - "Documentation: https://docs.aws.amazon.com/cli/"
