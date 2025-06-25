@@ -1,0 +1,29 @@
+---
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_os_family }}.yml"
+    - "default.yml"
+
+- name: Install Docker on Linux
+  include_tasks: linux.yml
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+
+- name: Install Docker on macOS
+  include_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Add user to docker group (Linux only)
+  user:
+    name: "{{ current_user }}"
+    groups: docker
+    append: yes
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+  become: yes
+
+- name: Start and enable Docker service (Linux only)
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']

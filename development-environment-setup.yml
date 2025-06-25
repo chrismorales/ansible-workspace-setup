@@ -1,0 +1,72 @@
+# site.yml - Main playbook for development environment setup
+---
+- name: Development Environment Setup
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+  become: yes
+  become_method: sudo
+
+  vars:
+    # Global variables
+    user_home: "{{ ansible_env.HOME }}"
+    current_user: "{{ ansible_env.USER }}"
+    
+    # Package installation flags - set to false to skip
+    install_docker: true
+    install_vscode: true
+    install_ohmyzsh: true
+    install_neovim: true
+    install_python_virtualenv: true
+    install_obsidian: true
+    install_pass: true
+
+  pre_tasks:
+    - name: Display OS information
+      debug:
+        msg: 
+          - "Operating System: {{ ansible_os_family }}"
+          - "Distribution: {{ ansible_distribution | default('N/A') }}"
+          - "Version: {{ ansible_distribution_version | default('N/A') }}"
+          - "Architecture: {{ ansible_architecture }}"
+          - "User: {{ current_user }}"
+          - "Home: {{ user_home }}"
+
+    - name: Fail if running on unsupported OS
+      fail:
+        msg: "This playbook only supports Linux and macOS (Darwin)"
+      when: ansible_os_family not in ['Debian', 'RedHat', 'Archlinux', 'Darwin']
+
+  roles:
+    - role: docker
+      when: install_docker
+      tags: docker
+
+    - role: vscode
+      when: install_vscode
+      tags: vscode
+
+    - role: ohmyzsh
+      when: install_ohmyzsh
+      tags: ohmyzsh
+
+    - role: neovim
+      when: install_neovim
+      tags: neovim
+
+    - role: python_virtualenv
+      when: install_python_virtualenv
+      tags: python
+
+    - role: obsidian
+      when: install_obsidian
+      tags: obsidian
+
+    - role: pass
+      when: install_pass
+      tags: pass
+
+  post_tasks:
+    - name: Display completion message
+      debug:
+        msg: "Development environment setup completed successfully!"

@@ -1,0 +1,50 @@
+---
+- name: Check if Oh My Zsh is already installed
+  stat:
+    path: "{{ user_home }}/.oh-my-zsh"
+  register: ohmyzsh_installed
+  become: no
+
+- name: Install Zsh
+  package:
+    name: zsh
+    state: present
+
+- name: Download Oh My Zsh installation script
+  get_url:
+    url: https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
+    dest: /tmp/install_ohmyzsh.sh
+    mode: '0755'
+  when: not ohmyzsh_installed.stat.exists
+  become: no
+
+- name: Install Oh My Zsh
+  shell: /tmp/install_ohmyzsh.sh --unattended
+  environment:
+    RUNZSH: 'no'
+  when: not ohmyzsh_installed.stat.exists
+  become: no
+
+- name: Change default shell to zsh
+  user:
+    name: "{{ current_user }}"
+    shell: /bin/zsh
+  become: yes
+
+- name: Install popular Oh My Zsh plugins
+  git:
+    repo: "{{ item.repo }}"
+    dest: "{{ user_home }}/.oh-my-zsh/custom/plugins/{{ item.name }}"
+    force: yes
+  loop:
+    - { name: "zsh-autosuggestions", repo: "https://github.com/zsh-users/zsh-autosuggestions.git" }
+    - { name: "zsh-syntax-highlighting", repo: "https://github.com/zsh-users/zsh-syntax-highlighting.git" }
+  become: no
+
+- name: Update .zshrc to include plugins
+  lineinfile:
+    path: "{{ user_home }}/.zshrc"
+    regexp: '^plugins='
+    line: 'plugins=(git zsh-autosuggestions zsh-syntax-highlighting)'
+    backup: yes
+  become: no

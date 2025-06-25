@@ -1,0 +1,47 @@
+---
+- name: Install VS Code on Debian/Ubuntu
+  block:
+    - name: Add Microsoft GPG key
+      apt_key:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        state: present
+
+    - name: Add VS Code repository
+      apt_repository:
+        repo: "deb [arch=amd64,arm64,armhf] https://packages.microsoft.com/repos/code stable main"
+        state: present
+
+    - name: Install VS Code
+      apt:
+        name: code
+        state: present
+        update_cache: yes
+  when: ansible_os_family == 'Debian'
+
+- name: Install VS Code on RedHat/CentOS/Fedora
+  block:
+    - name: Add Microsoft repository
+      yum_repository:
+        name: vscode
+        description: Visual Studio Code
+        baseurl: https://packages.microsoft.com/yumrepos/vscode
+        gpgkey: https://packages.microsoft.com/keys/microsoft.asc
+        gpgcheck: yes
+
+    - name: Install VS Code
+      package:
+        name: code
+        state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Install VS Code on Arch Linux
+  shell: |
+    if ! command -v yay &> /dev/null; then
+      echo "Installing yay AUR helper..."
+      git clone https://aur.archlinux.org/yay.git /tmp/yay
+      cd /tmp/yay
+      makepkg -si --noconfirm
+    fi
+    yay -S --noconfirm visual-studio-code-bin
+  become: no
+  when: ansible_os_family == 'Archlinux'

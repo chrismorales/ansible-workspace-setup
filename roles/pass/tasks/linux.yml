@@ -1,0 +1,30 @@
+---
+- name: Install pass and dependencies on Debian/Ubuntu
+  apt:
+    name:
+      - pass
+      - gnupg2
+      - git
+      - tree
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install pass and dependencies on RedHat/CentOS/Fedora
+  package:
+    name:
+      - pass
+      - gnupg2
+      - git
+      - tree
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Install pass and dependencies on Arch Linux
+  pacman:
+    name:
+      - pass
+      - gnupg
+      - git
+      - tree
+    state: present
+  when: ansible_os_family == 'Archlinux'

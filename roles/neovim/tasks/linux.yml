@@ -1,0 +1,18 @@
+---
+- name: Install Neovim on Debian/Ubuntu
+  apt:
+    name: neovim
+    state: present
+  when: ansible_os_family == 'Debian'
+
+- name: Install Neovim on RedHat/CentOS/Fedora
+  package:
+    name: neovim
+    state: present
+  when: ansible_os_family == 'RedHat'
+
+- name: Install Neovim on Arch Linux
+  pacman:
+    name: neovim
+    state: present
+  when: ansible_os_family == 'Archlinux'

@@ -1,8 +1,0 @@
----
-home_directory: /home/datahere
-project_directory: /home/datahere/projects/
-python_virtual_environment: /home/datahere/projects/_env310
-react_project_directory: /home/datahere/projects/react-example
-flask_project_directory: /home/datahere/projects/flask-example
-
-...

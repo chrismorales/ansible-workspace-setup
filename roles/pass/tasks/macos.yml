@@ -1,0 +1,9 @@
+---
+- name: Install pass and dependencies via Homebrew
+  homebrew:
+    name:
+      - pass
+      - gnupg
+      - git
+      - tree
+    state: present

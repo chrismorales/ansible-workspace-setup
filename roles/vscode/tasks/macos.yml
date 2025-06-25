@@ -1,0 +1,5 @@
+---
+- name: Install VS Code via Homebrew Cask
+  homebrew_cask:
+    name: visual-studio-code
+    state: present

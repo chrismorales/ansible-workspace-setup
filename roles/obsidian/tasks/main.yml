@@ -1,0 +1,14 @@
+---
+- name: Include OS-specific variables
+  include_vars: "{{ item }}"
+  with_first_found:
+    - "{{ ansible_os_family }}.yml"
+    - "default.yml"
+
+- name: Install Obsidian on Linux
+  include_tasks: linux.yml
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+
+- name: Install Obsidian on macOS
+  include_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'

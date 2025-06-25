@@ -1,0 +1,17 @@
+---
+- name: Install pass and dependencies on Linux
+  include_tasks: linux.yml
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+
+- name: Install pass on macOS
+  include_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Display pass setup instructions
+  debug:
+    msg:
+      - "Pass has been installed successfully!"
+      - "To initialize your password store, run:"
+      - "  gpg --generate-key"
+      - "  pass init <your-gpg-key-id>"
+      - "For more information, visit: https://www.passwordstore.org/"

@@ -1,0 +1,60 @@
+---
+- name: Download Obsidian AppImage (Debian/Ubuntu)
+  block:
+    - name: Create /opt directory if it doesn't exist
+      file:
+        path: /opt
+        state: directory
+        mode: '0755'
+
+    - name: Download Obsidian AppImage
+      get_url:
+        url: "https://github.com/obsidianmd/obsidian-releases/releases/download/v{{ obsidian_version }}/Obsidian-{{ obsidian_version }}.AppImage"
+        dest: /opt/Obsidian.AppImage
+        mode: '0755'
+
+    - name: Create Obsidian desktop entry
+      copy:
+        content: |
+          [Desktop Entry]
+          Name=Obsidian
+          Exec=/opt/Obsidian.AppImage
+          Icon=obsidian
+          Type=Application
+          Categories=Office;
+        dest: /usr/share/applications/obsidian.desktop
+        mode: '0644'
+  when: ansible_os_family == 'Debian'
+
+- name: Install Obsidian on RedHat/CentOS/Fedora
+  block:
+    - name: Download Obsidian AppImage
+      get_url:
+        url: "https://github.com/obsidianmd/obsidian-releases/releases/download/v{{ obsidian_version }}/Obsidian-{{ obsidian_version }}.AppImage"
+        dest: /opt/Obsidian.AppImage
+        mode: '0755'
+
+    - name: Create Obsidian desktop entry
+      copy:
+        content: |
+          [Desktop Entry]
+          Name=Obsidian
+          Exec=/opt/Obsidian.AppImage
+          Icon=obsidian
+          Type=Application
+          Categories=Office;
+        dest: /usr/share/applications/obsidian.desktop
+        mode: '0644'
+  when: ansible_os_family == 'RedHat'
+
+- name: Install Obsidian on Arch Linux
+  shell: |
+    if ! command -v yay &> /dev/null; then
+      echo "Installing yay AUR helper..."
+      git clone https://aur.archlinux.org/yay.git /tmp/yay
+      cd /tmp/yay
+      makepkg -si --noconfirm
+    fi
+    yay -S --noconfirm obsidian
+  become: no
+  when: ansible_os_family == 'Archlinux'

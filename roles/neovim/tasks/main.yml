@@ -1,0 +1,51 @@
+---
+- name: Install Neovim on Linux
+  include_tasks: linux.yml
+  when: ansible_os_family in ['Debian', 'RedHat', 'Archlinux']
+
+- name: Install Neovim on macOS
+  include_tasks: macos.yml
+  when: ansible_os_family == 'Darwin'
+
+- name: Create Neovim config directory
+  file:
+    path: "{{ user_home }}/.config/nvim"
+    state: directory
+    mode: '0755'
+  become: no
+
+- name: Create basic Neovim configuration
+  copy:
+    content: |
+      -- Basic Neovim configuration
+      vim.opt.number = true
+      vim.opt.relativenumber = true
+      vim.opt.expandtab = true
+      vim.opt.tabstop = 2
+      vim.opt.shiftwidth = 2
+      vim.opt.smartindent = true
+      vim.opt.wrap = false
+      vim.opt.swapfile = false
+      vim.opt.backup = false
+      vim.opt.hlsearch = false
+      vim.opt.incsearch = true
+      vim.opt.termguicolors = true
+      vim.opt.scrolloff = 8
+      vim.opt.signcolumn = "yes"
+      vim.opt.isfname:append("@-@")
+      vim.opt.updatetime = 50
+      vim.opt.colorcolumn = "80"
+      
+      -- Leader key
+      vim.g.mapleader = " "
+      
+      -- Basic keymaps
+      vim.keymap.set("n", "<leader>w", "<cmd>w<CR>")
+      vim.keymap.set("n", "<leader>q", "<cmd>q<CR>") 
+      vim.keymap.set("n", "<C-h>", "<C-w>h")
+      vim.keymap.set("n", "<C-j>", "<C-w>j")
+      vim.keymap.set("n", "<C-k>", "<C-w>k")
+      vim.keymap.set("n", "<C-l>", "<C-w>l")
+    dest: "{{ user_home }}/.config/nvim/init.lua"
+    mode: '0644'
+  become: no

@@ -1,0 +1,5 @@
+---
+- name: Install Obsidian via Homebrew Cask
+  homebrew_cask:
+    name: obsidian
+    state: present
